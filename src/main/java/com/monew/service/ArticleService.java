@@ -16,7 +16,6 @@ import com.monew.repository.InterestRepository;
 import com.monew.repository.SubscriptionRepository;
 import com.monew.repository.article.ArticleQueryRepository;
 import com.monew.repository.article.ArticleRepository;
-import com.monew.repository.article.ArticleRepositoryCustom;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -39,7 +38,6 @@ public class ArticleService {
   private final ArticleRepository articleRepository;
   private final ArticleQueryRepository articleQueryRepository;
   private final InterestRepository interestRepository;
-  private final ArticleRepositoryCustom articleRepositoryCustom;
 
   private final ArticleMapper articleMapper;
 
@@ -106,9 +104,7 @@ public class ArticleService {
     }
 
     List<Article> articleList = new ArrayList<>(urlToArticleMap.values());
-    articleList.forEach(Article::generateIdForBulkInsert);
-    articleRepositoryCustom.bulkInsertArticle(articleList);
-
+    articleRepository.saveAll(articleList);
     log.info("[뉴스 기사] DB 저장 완료 - {}건", articleList.size());
 
     List<ArticleInterest> mappingList = new ArrayList<>();
@@ -116,14 +112,12 @@ public class ArticleService {
       Set<Interest> interests = urlToInterestsMap.get(article.getSourceUrl());
       if (interests != null) {
         for (Interest interest : interests) {
-          ArticleInterest newArticleInterest = ArticleInterest.of(article, interest);
-          newArticleInterest.generateIdForBulkInsert();
-          mappingList.add(newArticleInterest);
+          mappingList.add(ArticleInterest.of(article, interest));
         }
       }
     }
 
-    articleRepositoryCustom.bulkInsertArticleInterest(mappingList);
+    articleInterestRepository.saveAll(mappingList);
 
     // 관심사별로 새로 등록된 기사 수를 집계한 뒤 구독자에게 요약 알림을 한 건만 생성합니다.
     sendNotifications(articleList, urlToInterestsMap, allInterests);
